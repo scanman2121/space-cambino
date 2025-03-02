@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Shooter</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
+  <!-- Add Supabase Client Library -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.21.0/dist/umd/supabase.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    /* Add styles for the initials input modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #222;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      color: white;
+      border: 2px solid #444;
+      width: 300px;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+      color: #0f0;
+    }
+    .modal-content input {
+      margin: 10px 0;
+      padding: 8px;
+      font-size: 18px;
+      text-align: center;
+      background-color: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 5px;
+      text-transform: uppercase;
+    }
+    .modal-content button {
+      margin: 10px 5px;
+      padding: 8px 15px;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .modal-content button:hover {
+      background-color: #0055aa;
+    }
+  </style>
+</head>
+<body>
+  <!-- Initials Input Modal -->
+  <div id="initialsModal" class="modal">
+    <div class="modal-content">
+      <h2>NEW HIGH SCORE!</h2>
+      <p>Enter your initials:</p>
+      <input type="text" id="initialsInput" maxlength="3" placeholder="AAA">
+      <div>
+        <button id="submitScore">Submit</button>
+        <button id="cancelSubmit">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Add a script to test Supabase connection -->
+  <script>
+    window.addEventListener('load', function() {
+      console.log("Window loaded, checking Supabase availability");
+      if (window.supabase) {
+        console.log("Supabase is available globally");
+      } else {
+        console.error("Supabase is not available globally");
+      }
+    });
+  </script>
+  
+  <script src="sketch.js"></script>
+</body>
+</html>
