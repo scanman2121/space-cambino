@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Space Cambino</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Shooter</title>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
   <!-- Add Supabase Client Library -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.21.0/dist/umd/supabase.js"></script>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     body {
       margin: 0;
@@ -19,12 +17,9 @@
       align-items: center;
       height: 100vh;
       overflow: hidden;
-      touch-action: none; /* Prevent browser handling of touch gestures */
     }
     canvas {
       display: block;
-      max-width: 100%;
-      max-height: 100vh;
     }
     /* Add styles for the initials input modal */
     .modal {
@@ -47,7 +42,6 @@
       color: white;
       border: 2px solid #444;
       width: 300px;
-      max-width: 90%;
     }
     .modal-content h2 {
       margin-top: 0;
@@ -76,19 +70,6 @@
     }
     .modal-content button:hover {
       background-color: #0055aa;
-    }
-    
-    /* Make buttons larger on mobile */
-    @media (max-width: 800px) {
-      .modal-content button {
-        padding: 12px 20px;
-        font-size: 18px;
-        margin: 15px 8px;
-      }
-      .modal-content input {
-        padding: 12px;
-        font-size: 24px;
-      }
     }
   </style>
 </head>

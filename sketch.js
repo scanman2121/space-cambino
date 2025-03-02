@@ -47,9 +47,8 @@ let bossTimer = 0; // Current time remaining
 let bossTimerStarted = false; // Flag to track if timer has started
 let bossTimerFlashing = false; // For warning effect
 let bossTimerMs = 0; // Track milliseconds for more precise timing
-let isMobile = false;
-let leftButton, rightButton, fireButton;
-let buttonSize = 70;
+let isMobileDevice = false;
+let mobileGraphicAngle = 0;
 
 // Fix the Supabase client initialization
 const SUPABASE_URL = 'https://oofyemkmdslsenmxefzu.supabase.co';
@@ -68,24 +67,17 @@ let supabaseClient;
 
 // Setup function: Initialize the canvas and game variables
 function setup() {
-  // Create a responsive canvas
-  let canvasWidth = min(windowWidth, 800);
-  let canvasHeight = min(windowHeight, 600);
-  
-  // For mobile, use full width but maintain aspect ratio
-  if (windowWidth <= 800) {
-    canvasWidth = windowWidth;
-    canvasHeight = windowWidth * 0.75; // Maintain 4:3 aspect ratio
-  }
-  
-  createCanvas(canvasWidth, canvasHeight);
-  
+  // Create a larger canvas
+  createCanvas(800, 600);
   // Center the canvas on the page
   let canvas = document.querySelector('canvas');
   if (canvas) {
     canvas.style.display = 'block';
     canvas.style.margin = 'auto';
   }
+  
+  // Check if user is on a mobile device
+  isMobileDevice = detectMobileDevice();
   
   // Initialize Supabase client properly
   try {
@@ -132,37 +124,6 @@ function setup() {
   // Add event listeners
   submitButton.addEventListener('click', submitScore);
   cancelButton.addEventListener('click', cancelScoreSubmit);
-  
-  // Check if we're on a mobile device
-  isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
-             || window.innerWidth <= 800;
-  
-  if (isMobile) {
-    // Create touch control buttons
-    createTouchControls();
-  }
-}
-
-// Add window resize handling
-function windowResized() {
-  let canvasWidth = min(windowWidth, 800);
-  let canvasHeight = min(windowHeight, 600);
-  
-  // For mobile, use full width but maintain aspect ratio
-  if (windowWidth <= 800) {
-    canvasWidth = windowWidth;
-    canvasHeight = windowWidth * 0.75; // Maintain 4:3 aspect ratio
-  }
-  
-  resizeCanvas(canvasWidth, canvasHeight);
-  
-  // Reposition player
-  playerY = height - 30;
-  
-  // Recreate touch controls if needed
-  if (isMobile) {
-    createTouchControls();
-  }
 }
 
 // Create the starfield background
@@ -183,21 +144,26 @@ function draw() {
   // Create a dark gradient background
   drawGradientBackground();
   
+  if (isMobileDevice) {
+    drawMobileWarning();
+    return; // Don't proceed with the rest of the game
+  }
+  
   if (gameState === 'welcome') {
     updateStars();
     drawStars();
     drawWelcomeScreen();
   } else if (gameState === 'playing') {
-    if (!gameOver) {
+  if (!gameOver) {
       // Regenerate health slowly when not recently damaged
       if (millis() - lastDamageTime > 5000 && playerHealth < playerMaxHealth) {
         playerHealth = min(playerHealth + healthRegenRate, playerMaxHealth);
       }
       
-      updateStars();
-      drawStars();
-      movePlayer();
-      updateBullets();
+    updateStars();
+    drawStars();
+    movePlayer();
+    updateBullets();
       updateParticles();
       updatePowerUps();
       
@@ -211,33 +177,28 @@ function draw() {
         updateBoss();
         drawBoss();
       } else {
-        updateEnemies();
+    updateEnemies();
         drawEnemies();
       }
       
-      checkCollisions();
-      drawPlayer();
-      drawBullets();
+    checkCollisions();
+    drawPlayer();
+    drawBullets();
       drawPowerUps();
       drawParticles();
-      drawScoreAndLives();
+    drawScoreAndLives();
       drawLevel();
-    } else {
+  } else {
       updateStars();
       drawStars();
       updateParticles();
       drawParticles();
-      drawGameOver();
+    drawGameOver();
     }
   } else if (gameState === 'leaderboard') {
     updateStars();
     drawStars();
     drawLeaderboard();
-  }
-  
-  // Draw touch controls if on mobile
-  if (isMobile) {
-    drawTouchControls();
   }
 }
 
@@ -298,28 +259,16 @@ function drawStars() {
 
 // Move the player's spaceship with arrow keys
 function movePlayer() {
-  if (isMobile) {
-    // Move based on touch buttons
-    if (leftButton.pressed) {
-      playerX -= 5;
-      createParticle(playerX + 10, playerY, 2, color(200, 200, 255, 150), 10);
-    }
-    if (rightButton.pressed) {
-      playerX += 5;
-      createParticle(playerX - 10, playerY, 2, color(200, 200, 255, 150), 10);
-    }
-  } else {
-    // Existing keyboard controls
-    if (keyIsDown(LEFT_ARROW)) {
-      playerX -= 5;
-      createParticle(playerX + 10, playerY, 2, color(200, 200, 255, 150), 10);
-    }
-    if (keyIsDown(RIGHT_ARROW)) {
-      playerX += 5;
-      createParticle(playerX - 10, playerY, 2, color(200, 200, 255, 150), 10);
-    }
+  if (keyIsDown(LEFT_ARROW)) {
+    playerX -= 5;
+    // Add engine particle effect when moving
+    createParticle(playerX + 10, playerY, 2, color(200, 200, 255, 150), 10);
   }
-  
+  if (keyIsDown(RIGHT_ARROW)) {
+    playerX += 5;
+    // Add engine particle effect when moving
+    createParticle(playerX - 10, playerY, 2, color(200, 200, 255, 150), 10);
+  }
   playerX = constrain(playerX, 10, width - 10); // Keep player on screen
 }
 
@@ -887,7 +836,7 @@ function updateBoss() {
     
     // Kill the player
     playerHealth = 0;
-    gameOver = true;
+        gameOver = true;
     
     // Create explosion at player position
     createExplosion(playerX, playerY, 50, color(255, 200, 0));
@@ -1039,7 +988,7 @@ function drawBoss() {
 // Update the checkCollisions function to handle boss damage
 function checkCollisions() {
   for (let i = bullets.length - 1; i >= 0; i--) {
-    let bullet = bullets[i];
+      let bullet = bullets[i];
     let bulletHit = false; // Track if bullet hit something
     
     // Check boss collision
@@ -1145,8 +1094,8 @@ function checkCollisions() {
               objectsDestroyed++;
               checkForPowerUpSpawn(enemy.x, enemy.y);
               
-              enemies.splice(j, 1);
-              score += 10;
+        enemies.splice(j, 1);
+        score += 10;
               levelScore += 10;
             }
           } else {
@@ -1488,14 +1437,14 @@ function drawGameOver() {
 
 // Handle key presses for shooting, restarting, and leaderboard
 function keyPressed() {
-  if (key === ' ' && !gameOver && gameState === 'playing') {
+  if (keyCode === 32 && !gameOver && gameState === 'playing' && millis() - lastShotTime > shootCooldown) { // Spacebar to shoot
     createBullet();
     lastShotTime = millis();
   }
   
   if (gameOver && gameState === 'playing') {
     if (keyCode === 82) { // 'R' to restart
-      restartGame();
+    restartGame();
     } else if (keyCode === 76) { // 'L' to view leaderboard
       gameState = 'leaderboard';
     } else if (keyCode === ENTER) { // ENTER to submit score
@@ -1920,271 +1869,94 @@ function drawMiniLeaderboard() {
   noStroke();
 }
 
-// Add this function to create touch controls
-function createTouchControls() {
-  // Create button objects for touch controls
-  leftButton = {
-    x: 60,
-    y: height - 60,
-    size: buttonSize,
-    pressed: false
-  };
-  
-  rightButton = {
-    x: 150,
-    y: height - 60,
-    size: buttonSize,
-    pressed: false
-  };
-  
-  fireButton = {
-    x: width - 60,
-    y: height - 60,
-    size: buttonSize,
-    pressed: false
-  };
+// Add this function to detect mobile devices
+function detectMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         (window.innerWidth <= 800 && window.innerHeight <= 600);
 }
 
-// Add this function to draw the touch controls
-function drawTouchControls() {
-  if (!isMobile || gameState !== 'playing' || gameOver) return;
+// Add this function to draw the mobile warning screen
+function drawMobileWarning() {
+  background(20, 20, 40); // Dark background
   
-  // Draw left button
-  fill(0, 100, 255, 150);
-  if (leftButton.pressed) fill(0, 150, 255, 200);
-  ellipse(leftButton.x, leftButton.y, leftButton.size);
-  fill(255);
-  triangle(
-    leftButton.x - 15, leftButton.y,
-    leftButton.x + 5, leftButton.y - 20,
-    leftButton.x + 5, leftButton.y + 20
-  );
+  // Update the animation angle
+  mobileGraphicAngle += 0.02;
   
-  // Draw right button
-  fill(0, 100, 255, 150);
-  if (rightButton.pressed) fill(0, 150, 255, 200);
-  ellipse(rightButton.x, rightButton.y, rightButton.size);
-  fill(255);
-  triangle(
-    rightButton.x + 15, rightButton.y,
-    rightButton.x - 5, rightButton.y - 20,
-    rightButton.x - 5, rightButton.y + 20
-  );
-  
-  // Draw fire button
-  fill(255, 50, 50, 150);
-  if (fireButton.pressed) fill(255, 100, 100, 200);
-  ellipse(fireButton.x, fireButton.y, fireButton.size);
-  fill(255);
-  text("FIRE", fireButton.x, fireButton.y);
-}
-
-// Add these touch event handlers
-function touchStarted() {
-  // Handle touch events for all devices including iOS
-  if (isMobile) {
-    // For menu interactions
-    if (gameState !== 'playing') {
-      handleMenuTouch();
-      return false;
-    }
+  // Draw animated stars in background
+  for (let i = 0; i < 50; i++) {
+    let x = width/2 + cos(mobileGraphicAngle * 0.5 + i * 0.5) * (width * 0.4);
+    let y = height/2 + sin(mobileGraphicAngle * 0.3 + i * 0.5) * (height * 0.3);
+    let size = 1 + sin(mobileGraphicAngle + i) * 2;
     
-    // For gameplay
-    let touchX = touches[0] ? touches[0].x : mouseX;
-    let touchY = touches[0] ? touches[0].y : mouseY;
-    
-    // Check left button
-    if (dist(touchX, touchY, leftButton.x, leftButton.y) < leftButton.size/2) {
-      leftButton.pressed = true;
-    }
-    
-    // Check right button
-    if (dist(touchX, touchY, rightButton.x, rightButton.y) < rightButton.size/2) {
-      rightButton.pressed = true;
-    }
-    
-    // Check fire button
-    if (dist(touchX, touchY, fireButton.x, fireButton.y) < fireButton.size/2) {
-      fireButton.pressed = true;
-      
-      // Handle firing
-      if (millis() - lastShotTime > shootCooldown) {
-        createBullet();
-        lastShotTime = millis();
-      }
-    }
+    fill(200 + sin(i) * 55, 200 + cos(i) * 55, 255, 150);
+    noStroke();
+    ellipse(x, y, size, size);
   }
   
-  return false; // Prevent default behavior
-}
-
-function touchEnded() {
-  if (isMobile) {
-    // Reset all buttons when touch ends
-    leftButton.pressed = false;
-    rightButton.pressed = false;
-    fireButton.pressed = false;
-  }
+  // Draw desktop computer graphic
+  push();
+  translate(width/2, height/2 - 50);
   
-  return false; // Prevent default behavior
-}
-
-function touchMoved() {
-  if (isMobile && gameState === 'playing') {
-    let touchX = touches[0] ? touches[0].x : mouseX;
-    let touchY = touches[0] ? touches[0].y : mouseY;
-    
-    // Reset all buttons first
-    leftButton.pressed = false;
-    rightButton.pressed = false;
-    fireButton.pressed = false;
-    
-    // Then check which button is being touched
-    for (let i = 0; i < touches.length; i++) {
-      let tx = touches[i].x;
-      let ty = touches[i].y;
-      
-      // Check left button
-      if (dist(tx, ty, leftButton.x, leftButton.y) < leftButton.size/2) {
-        leftButton.pressed = true;
-      }
-      
-      // Check right button
-      if (dist(tx, ty, rightButton.x, rightButton.y) < leftButton.size/2) {
-        rightButton.pressed = true;
-      }
-      
-      // Check fire button
-      if (dist(tx, ty, fireButton.x, fireButton.y) < fireButton.size/2) {
-        fireButton.pressed = true;
-        
-        // Handle firing with cooldown
-        if (millis() - lastShotTime > shootCooldown) {
-          createBullet();
-          lastShotTime = millis();
-        }
-      }
-    }
-  }
+  // Monitor
+  fill(40, 40, 60);
+  rect(-80, -70, 160, 120, 5);
   
-  return false; // Prevent default behavior
-}
-
-// Remove the checkButtonPress function and replace with direct handling in touch events
-
-// Update handleMenuTouch to work better on iOS
-function handleMenuTouch() {
-  if (touches.length === 0) return;
+  // Screen
+  fill(60, 100, 200);
+  rect(-70, -60, 140, 100);
   
-  let touchX = touches[0].x;
-  let touchY = touches[0].y;
-  
-  if (gameState === 'welcome') {
-    // Check if Play Now button is touched
-    if (touchX > width/2 - 80 && touchX < width/2 + 80 &&
-        touchY > height - 100 && touchY < height - 50) {
-      gameState = 'playing';
-    }
-    
-    // Check if View Full Leaderboard link is touched
-    if (touchX > width/2 - 90 && touchX < width/2 + 90 &&
-        touchY > 469 && touchY < 489) {
-      gameState = 'leaderboard';
-    }
-  } else if (gameState === 'leaderboard') {
-    // Check if Play button is touched
-    if (touchX > width/2 - 170 && touchX < width/2 - 30 &&
-        touchY > height - 80 && touchY < height - 30) {
-      restartGame();
-      gameState = 'playing';
-    }
-    
-    // Check if Home button is touched
-    if (touchX > width/2 + 30 && touchX < width/2 + 170 &&
-        touchY > height - 80 && touchY < height - 30) {
-      restartGame();
-      gameState = 'welcome';
-    }
-  } else if (gameState === 'playing' && gameOver) {
-    // Handle game over screen touches
-    if (touchY > height/2 + 30 && touchY < height/2 + 50) {
-      showInitialsInput(); // Submit score
-    } else if (touchY > height/2 + 60 && touchY < height/2 + 80) {
-      restartGame(); // Restart
-    } else if (touchY > height/2 + 90 && touchY < height/2 + 110) {
-      gameState = 'leaderboard'; // View leaderboard
-    }
-  }
-}
-
-// Make the touch controls more visible and larger
-function createTouchControls() {
-  // Create button objects for touch controls
-  buttonSize = min(width * 0.18, 80); // Make buttons responsive to screen size
-  
-  leftButton = {
-    x: buttonSize * 0.8,
-    y: height - buttonSize * 0.8,
-    size: buttonSize,
-    pressed: false
-  };
-  
-  rightButton = {
-    x: buttonSize * 2.2,
-    y: height - buttonSize * 0.8,
-    size: buttonSize,
-    pressed: false
-  };
-  
-  fireButton = {
-    x: width - buttonSize * 0.8,
-    y: height - buttonSize * 0.8,
-    size: buttonSize,
-    pressed: false
-  };
-}
-
-// Make the touch controls more visible
-function drawTouchControls() {
-  if (!isMobile || gameState !== 'playing') return;
-  
-  // Draw left button
-  fill(0, 100, 255, leftButton.pressed ? 200 : 150);
-  stroke(255, 255, 255, 100);
-  strokeWeight(2);
-  ellipse(leftButton.x, leftButton.y, leftButton.size);
-  
+  // Game elements on screen
   fill(255);
-  noStroke();
-  triangle(
-    leftButton.x - 15, leftButton.y,
-    leftButton.x + 5, leftButton.y - 20,
-    leftButton.x + 5, leftButton.y + 20
-  );
+  // Player ship
+  triangle(-10, 20, 10, 20, 0, 0);
+  // Enemy
+  fill(255, 100, 100);
+  ellipse(0, -20, 15, 15);
+  // Bullets
+  fill(0, 255, 0);
+  rect(-2, 10, 4, 8);
+  rect(-2, -10, 4, 8);
   
-  // Draw right button
-  fill(0, 100, 255, rightButton.pressed ? 200 : 150);
-  stroke(255, 255, 255, 100);
-  strokeWeight(2);
-  ellipse(rightButton.x, rightButton.y, rightButton.size);
+  // Stand
+  fill(40, 40, 60);
+  rect(-15, 50, 30, 10);
+  rect(-25, 60, 50, 5);
   
+  // Keyboard
+  fill(50, 50, 70);
+  rect(-60, 80, 120, 20, 5);
+  
+  // Add pulsing glow effect
+  let glowSize = 180 + sin(mobileGraphicAngle * 2) * 20;
+  let glowAlpha = 50 + sin(mobileGraphicAngle) * 20;
+  fill(100, 150, 255, glowAlpha);
+  ellipse(0, 0, glowSize, glowSize);
+  
+  pop();
+  
+  // Draw text
   fill(255);
-  noStroke();
-  triangle(
-    rightButton.x + 15, rightButton.y,
-    rightButton.x - 5, rightButton.y - 20,
-    rightButton.x - 5, rightButton.y + 20
-  );
+  textSize(36);
+  textAlign(CENTER);
+  text("DESKTOP ONLY", width/2, height/2 + 120);
   
-  // Draw fire button
-  fill(255, 50, 50, fireButton.pressed ? 200 : 150);
-  stroke(255, 255, 255, 100);
-  strokeWeight(2);
-  ellipse(fireButton.x, fireButton.y, fireButton.size);
-  
-  fill(255);
-  noStroke();
+  // Subtitle with pulsing effect
+  let subtitleAlpha = 200 + sin(mobileGraphicAngle * 3) * 55;
+  fill(200, 200, 255, subtitleAlpha);
   textSize(16);
-  textAlign(CENTER, CENTER);
-  text("FIRE", fireButton.x, fireButton.y);
+  text("Space Cambino requires a desktop or laptop", width/2, height/2 + 160);
+  text("with keyboard controls to play", width/2, height/2 + 185);
+  
+  // Instructions
+  fill(150, 200, 255);
+  textSize(14);
+  text("Please visit on a computer for the full experience", width/2, height/2 + 230);
+  
+  // Draw animated arrow pointing to computer
+  push();
+  translate(width/2, height/2 + 50);
+  rotate(sin(mobileGraphicAngle) * 0.1);
+  fill(255, 255, 0, 200 + sin(mobileGraphicAngle * 2) * 55);
+  triangle(-10, -20, 10, -20, 0, -40);
+  pop();
 }
