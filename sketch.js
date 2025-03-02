@@ -47,6 +47,9 @@ let bossTimer = 0; // Current time remaining
 let bossTimerStarted = false; // Flag to track if timer has started
 let bossTimerFlashing = false; // For warning effect
 let bossTimerMs = 0; // Track milliseconds for more precise timing
+let isMobile = false;
+let leftButton, rightButton, fireButton;
+let buttonSize = 70;
 
 // Fix the Supabase client initialization
 const SUPABASE_URL = 'https://oofyemkmdslsenmxefzu.supabase.co';
@@ -65,8 +68,18 @@ let supabaseClient;
 
 // Setup function: Initialize the canvas and game variables
 function setup() {
-  // Create a larger canvas
-  createCanvas(800, 600);
+  // Create a responsive canvas
+  let canvasWidth = min(windowWidth, 800);
+  let canvasHeight = min(windowHeight, 600);
+  
+  // For mobile, use full width but maintain aspect ratio
+  if (windowWidth <= 800) {
+    canvasWidth = windowWidth;
+    canvasHeight = windowWidth * 0.75; // Maintain 4:3 aspect ratio
+  }
+  
+  createCanvas(canvasWidth, canvasHeight);
+  
   // Center the canvas on the page
   let canvas = document.querySelector('canvas');
   if (canvas) {
@@ -119,6 +132,37 @@ function setup() {
   // Add event listeners
   submitButton.addEventListener('click', submitScore);
   cancelButton.addEventListener('click', cancelScoreSubmit);
+  
+  // Check if we're on a mobile device
+  isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+             || window.innerWidth <= 800;
+  
+  if (isMobile) {
+    // Create touch control buttons
+    createTouchControls();
+  }
+}
+
+// Add window resize handling
+function windowResized() {
+  let canvasWidth = min(windowWidth, 800);
+  let canvasHeight = min(windowHeight, 600);
+  
+  // For mobile, use full width but maintain aspect ratio
+  if (windowWidth <= 800) {
+    canvasWidth = windowWidth;
+    canvasHeight = windowWidth * 0.75; // Maintain 4:3 aspect ratio
+  }
+  
+  resizeCanvas(canvasWidth, canvasHeight);
+  
+  // Reposition player
+  playerY = height - 30;
+  
+  // Recreate touch controls if needed
+  if (isMobile) {
+    createTouchControls();
+  }
 }
 
 // Create the starfield background
@@ -190,6 +234,11 @@ function draw() {
     drawStars();
     drawLeaderboard();
   }
+  
+  // Draw touch controls if on mobile
+  if (isMobile) {
+    drawTouchControls();
+  }
 }
 
 // Replace the gradient background with a mesh gradient
@@ -249,16 +298,28 @@ function drawStars() {
 
 // Move the player's spaceship with arrow keys
 function movePlayer() {
-  if (keyIsDown(LEFT_ARROW)) {
-    playerX -= 5;
-    // Add engine particle effect when moving
-    createParticle(playerX + 10, playerY, 2, color(200, 200, 255, 150), 10);
+  if (isMobile) {
+    // Move based on touch buttons
+    if (leftButton.pressed) {
+      playerX -= 5;
+      createParticle(playerX + 10, playerY, 2, color(200, 200, 255, 150), 10);
+    }
+    if (rightButton.pressed) {
+      playerX += 5;
+      createParticle(playerX - 10, playerY, 2, color(200, 200, 255, 150), 10);
+    }
+  } else {
+    // Existing keyboard controls
+    if (keyIsDown(LEFT_ARROW)) {
+      playerX -= 5;
+      createParticle(playerX + 10, playerY, 2, color(200, 200, 255, 150), 10);
+    }
+    if (keyIsDown(RIGHT_ARROW)) {
+      playerX += 5;
+      createParticle(playerX - 10, playerY, 2, color(200, 200, 255, 150), 10);
+    }
   }
-  if (keyIsDown(RIGHT_ARROW)) {
-    playerX += 5;
-    // Add engine particle effect when moving
-    createParticle(playerX - 10, playerY, 2, color(200, 200, 255, 150), 10);
-  }
+  
   playerX = constrain(playerX, 10, width - 10); // Keep player on screen
 }
 
@@ -1427,7 +1488,7 @@ function drawGameOver() {
 
 // Handle key presses for shooting, restarting, and leaderboard
 function keyPressed() {
-  if (keyCode === 32 && !gameOver && gameState === 'playing' && millis() - lastShotTime > shootCooldown) { // Spacebar to shoot
+  if (key === ' ' && !gameOver && gameState === 'playing') {
     createBullet();
     lastShotTime = millis();
   }
@@ -1857,4 +1918,153 @@ function drawMiniLeaderboard() {
   strokeWeight(1);
   line(width / 2 - 90, 484, width / 2 + 90, 484);
   noStroke();
+}
+
+// Add this function to create touch controls
+function createTouchControls() {
+  // Create button objects for touch controls
+  leftButton = {
+    x: 60,
+    y: height - 60,
+    size: buttonSize,
+    pressed: false
+  };
+  
+  rightButton = {
+    x: 150,
+    y: height - 60,
+    size: buttonSize,
+    pressed: false
+  };
+  
+  fireButton = {
+    x: width - 60,
+    y: height - 60,
+    size: buttonSize,
+    pressed: false
+  };
+}
+
+// Add this function to draw the touch controls
+function drawTouchControls() {
+  if (!isMobile || gameState !== 'playing' || gameOver) return;
+  
+  // Draw left button
+  fill(0, 100, 255, 150);
+  if (leftButton.pressed) fill(0, 150, 255, 200);
+  ellipse(leftButton.x, leftButton.y, leftButton.size);
+  fill(255);
+  triangle(
+    leftButton.x - 15, leftButton.y,
+    leftButton.x + 5, leftButton.y - 20,
+    leftButton.x + 5, leftButton.y + 20
+  );
+  
+  // Draw right button
+  fill(0, 100, 255, 150);
+  if (rightButton.pressed) fill(0, 150, 255, 200);
+  ellipse(rightButton.x, rightButton.y, rightButton.size);
+  fill(255);
+  triangle(
+    rightButton.x + 15, rightButton.y,
+    rightButton.x - 5, rightButton.y - 20,
+    rightButton.x - 5, rightButton.y + 20
+  );
+  
+  // Draw fire button
+  fill(255, 50, 50, 150);
+  if (fireButton.pressed) fill(255, 100, 100, 200);
+  ellipse(fireButton.x, fireButton.y, fireButton.size);
+  fill(255);
+  text("FIRE", fireButton.x, fireButton.y);
+}
+
+// Add these touch event handlers
+function touchStarted() {
+  if (!isMobile) return;
+  
+  checkButtonPress(true);
+  return false; // Prevent default
+}
+
+function touchEnded() {
+  if (!isMobile) return;
+  
+  checkButtonPress(false);
+  return false; // Prevent default
+}
+
+function touchMoved() {
+  if (!isMobile) return;
+  
+  checkButtonPress(true);
+  return false; // Prevent default
+}
+
+function checkButtonPress(isPressed) {
+  // Check if we're in playing state
+  if (gameState !== 'playing') {
+    // Handle menu touch interactions
+    handleMenuTouch();
+    return;
+  }
+  
+  // Check each button
+  for (let touch of touches) {
+    // Left button
+    if (dist(touch.x, touch.y, leftButton.x, leftButton.y) < leftButton.size/2) {
+      leftButton.pressed = isPressed;
+    }
+    
+    // Right button
+    if (dist(touch.x, touch.y, rightButton.x, rightButton.y) < rightButton.size/2) {
+      rightButton.pressed = isPressed;
+    }
+    
+    // Fire button
+    if (dist(touch.x, touch.y, fireButton.x, fireButton.y) < fireButton.size/2) {
+      fireButton.pressed = isPressed;
+      
+      // Handle firing
+      if (isPressed && millis() - lastShotTime > shootCooldown) {
+        createBullet();
+        lastShotTime = millis();
+      }
+    }
+  }
+}
+
+// Handle menu touches
+function handleMenuTouch() {
+  if (touches.length === 0) return;
+  
+  let touch = touches[0];
+  
+  if (gameState === 'welcome') {
+    // Check if Play Now button is touched
+    if (touch.x > width/2 - 80 && touch.x < width/2 + 80 &&
+        touch.y > height - 100 && touch.y < height - 50) {
+      gameState = 'playing';
+    }
+    
+    // Check if View Full Leaderboard link is touched
+    if (touch.x > width/2 - 90 && touch.x < width/2 + 90 &&
+        touch.y > 469 && touch.y < 489) {
+      gameState = 'leaderboard';
+    }
+  } else if (gameState === 'leaderboard') {
+    // Check if Play button is touched
+    if (touch.x > width/2 - 170 && touch.x < width/2 - 30 &&
+        touch.y > height - 80 && touch.y < height - 30) {
+      restartGame();
+      gameState = 'playing';
+    }
+    
+    // Check if Home button is touched
+    if (touch.x > width/2 + 30 && touch.x < width/2 + 170 &&
+        touch.y > height - 80 && touch.y < height - 30) {
+      restartGame();
+      gameState = 'welcome';
+    }
+  }
 }
