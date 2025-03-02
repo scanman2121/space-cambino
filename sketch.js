@@ -1871,8 +1871,9 @@ function drawMiniLeaderboard() {
 
 // Add this function to detect mobile devices
 function detectMobileDevice() {
+  // Check for mobile user agents OR any viewport under 600px wide
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-         (window.innerWidth <= 800 && window.innerHeight <= 600);
+         window.innerWidth < 600;
 }
 
 // Add this function to draw the mobile warning screen
