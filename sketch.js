@@ -1981,90 +1981,210 @@ function drawTouchControls() {
 
 // Add these touch event handlers
 function touchStarted() {
-  if (!isMobile) return;
-  
-  checkButtonPress(true);
-  return false; // Prevent default
-}
-
-function touchEnded() {
-  if (!isMobile) return;
-  
-  checkButtonPress(false);
-  return false; // Prevent default
-}
-
-function touchMoved() {
-  if (!isMobile) return;
-  
-  checkButtonPress(true);
-  return false; // Prevent default
-}
-
-function checkButtonPress(isPressed) {
-  // Check if we're in playing state
-  if (gameState !== 'playing') {
-    // Handle menu touch interactions
-    handleMenuTouch();
-    return;
-  }
-  
-  // Check each button
-  for (let touch of touches) {
-    // Left button
-    if (dist(touch.x, touch.y, leftButton.x, leftButton.y) < leftButton.size/2) {
-      leftButton.pressed = isPressed;
+  // Handle touch events for all devices including iOS
+  if (isMobile) {
+    // For menu interactions
+    if (gameState !== 'playing') {
+      handleMenuTouch();
+      return false;
     }
     
-    // Right button
-    if (dist(touch.x, touch.y, rightButton.x, rightButton.y) < rightButton.size/2) {
-      rightButton.pressed = isPressed;
+    // For gameplay
+    let touchX = touches[0] ? touches[0].x : mouseX;
+    let touchY = touches[0] ? touches[0].y : mouseY;
+    
+    // Check left button
+    if (dist(touchX, touchY, leftButton.x, leftButton.y) < leftButton.size/2) {
+      leftButton.pressed = true;
     }
     
-    // Fire button
-    if (dist(touch.x, touch.y, fireButton.x, fireButton.y) < fireButton.size/2) {
-      fireButton.pressed = isPressed;
+    // Check right button
+    if (dist(touchX, touchY, rightButton.x, rightButton.y) < rightButton.size/2) {
+      rightButton.pressed = true;
+    }
+    
+    // Check fire button
+    if (dist(touchX, touchY, fireButton.x, fireButton.y) < fireButton.size/2) {
+      fireButton.pressed = true;
       
       // Handle firing
-      if (isPressed && millis() - lastShotTime > shootCooldown) {
+      if (millis() - lastShotTime > shootCooldown) {
         createBullet();
         lastShotTime = millis();
       }
     }
   }
+  
+  return false; // Prevent default behavior
 }
 
-// Handle menu touches
+function touchEnded() {
+  if (isMobile) {
+    // Reset all buttons when touch ends
+    leftButton.pressed = false;
+    rightButton.pressed = false;
+    fireButton.pressed = false;
+  }
+  
+  return false; // Prevent default behavior
+}
+
+function touchMoved() {
+  if (isMobile && gameState === 'playing') {
+    let touchX = touches[0] ? touches[0].x : mouseX;
+    let touchY = touches[0] ? touches[0].y : mouseY;
+    
+    // Reset all buttons first
+    leftButton.pressed = false;
+    rightButton.pressed = false;
+    fireButton.pressed = false;
+    
+    // Then check which button is being touched
+    for (let i = 0; i < touches.length; i++) {
+      let tx = touches[i].x;
+      let ty = touches[i].y;
+      
+      // Check left button
+      if (dist(tx, ty, leftButton.x, leftButton.y) < leftButton.size/2) {
+        leftButton.pressed = true;
+      }
+      
+      // Check right button
+      if (dist(tx, ty, rightButton.x, rightButton.y) < leftButton.size/2) {
+        rightButton.pressed = true;
+      }
+      
+      // Check fire button
+      if (dist(tx, ty, fireButton.x, fireButton.y) < fireButton.size/2) {
+        fireButton.pressed = true;
+        
+        // Handle firing with cooldown
+        if (millis() - lastShotTime > shootCooldown) {
+          createBullet();
+          lastShotTime = millis();
+        }
+      }
+    }
+  }
+  
+  return false; // Prevent default behavior
+}
+
+// Remove the checkButtonPress function and replace with direct handling in touch events
+
+// Update handleMenuTouch to work better on iOS
 function handleMenuTouch() {
   if (touches.length === 0) return;
   
-  let touch = touches[0];
+  let touchX = touches[0].x;
+  let touchY = touches[0].y;
   
   if (gameState === 'welcome') {
     // Check if Play Now button is touched
-    if (touch.x > width/2 - 80 && touch.x < width/2 + 80 &&
-        touch.y > height - 100 && touch.y < height - 50) {
+    if (touchX > width/2 - 80 && touchX < width/2 + 80 &&
+        touchY > height - 100 && touchY < height - 50) {
       gameState = 'playing';
     }
     
     // Check if View Full Leaderboard link is touched
-    if (touch.x > width/2 - 90 && touch.x < width/2 + 90 &&
-        touch.y > 469 && touch.y < 489) {
+    if (touchX > width/2 - 90 && touchX < width/2 + 90 &&
+        touchY > 469 && touchY < 489) {
       gameState = 'leaderboard';
     }
   } else if (gameState === 'leaderboard') {
     // Check if Play button is touched
-    if (touch.x > width/2 - 170 && touch.x < width/2 - 30 &&
-        touch.y > height - 80 && touch.y < height - 30) {
+    if (touchX > width/2 - 170 && touchX < width/2 - 30 &&
+        touchY > height - 80 && touchY < height - 30) {
       restartGame();
       gameState = 'playing';
     }
     
     // Check if Home button is touched
-    if (touch.x > width/2 + 30 && touch.x < width/2 + 170 &&
-        touch.y > height - 80 && touch.y < height - 30) {
+    if (touchX > width/2 + 30 && touchX < width/2 + 170 &&
+        touchY > height - 80 && touchY < height - 30) {
       restartGame();
       gameState = 'welcome';
     }
+  } else if (gameState === 'playing' && gameOver) {
+    // Handle game over screen touches
+    if (touchY > height/2 + 30 && touchY < height/2 + 50) {
+      showInitialsInput(); // Submit score
+    } else if (touchY > height/2 + 60 && touchY < height/2 + 80) {
+      restartGame(); // Restart
+    } else if (touchY > height/2 + 90 && touchY < height/2 + 110) {
+      gameState = 'leaderboard'; // View leaderboard
+    }
   }
+}
+
+// Make the touch controls more visible and larger
+function createTouchControls() {
+  // Create button objects for touch controls
+  buttonSize = min(width * 0.18, 80); // Make buttons responsive to screen size
+  
+  leftButton = {
+    x: buttonSize * 0.8,
+    y: height - buttonSize * 0.8,
+    size: buttonSize,
+    pressed: false
+  };
+  
+  rightButton = {
+    x: buttonSize * 2.2,
+    y: height - buttonSize * 0.8,
+    size: buttonSize,
+    pressed: false
+  };
+  
+  fireButton = {
+    x: width - buttonSize * 0.8,
+    y: height - buttonSize * 0.8,
+    size: buttonSize,
+    pressed: false
+  };
+}
+
+// Make the touch controls more visible
+function drawTouchControls() {
+  if (!isMobile || gameState !== 'playing') return;
+  
+  // Draw left button
+  fill(0, 100, 255, leftButton.pressed ? 200 : 150);
+  stroke(255, 255, 255, 100);
+  strokeWeight(2);
+  ellipse(leftButton.x, leftButton.y, leftButton.size);
+  
+  fill(255);
+  noStroke();
+  triangle(
+    leftButton.x - 15, leftButton.y,
+    leftButton.x + 5, leftButton.y - 20,
+    leftButton.x + 5, leftButton.y + 20
+  );
+  
+  // Draw right button
+  fill(0, 100, 255, rightButton.pressed ? 200 : 150);
+  stroke(255, 255, 255, 100);
+  strokeWeight(2);
+  ellipse(rightButton.x, rightButton.y, rightButton.size);
+  
+  fill(255);
+  noStroke();
+  triangle(
+    rightButton.x + 15, rightButton.y,
+    rightButton.x - 5, rightButton.y - 20,
+    rightButton.x - 5, rightButton.y + 20
+  );
+  
+  // Draw fire button
+  fill(255, 50, 50, fireButton.pressed ? 200 : 150);
+  stroke(255, 255, 255, 100);
+  strokeWeight(2);
+  ellipse(fireButton.x, fireButton.y, fireButton.size);
+  
+  fill(255);
+  noStroke();
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  text("FIRE", fireButton.x, fireButton.y);
 }
