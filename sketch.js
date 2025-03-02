@@ -42,6 +42,11 @@ let healthRegenRate = 0.05; // Small health regeneration when not taking damage
 let lastDamageTime = 0;
 let damageImmunityTime = 1000; // Brief immunity after taking damage (milliseconds)
 let healthFlashTimer = 0; // For flashing effect when taking damage
+let bossTimeLimit = 15; // 15 seconds instead of 60
+let bossTimer = 0; // Current time remaining
+let bossTimerStarted = false; // Flag to track if timer has started
+let bossTimerFlashing = false; // For warning effect
+let bossTimerMs = 0; // Track milliseconds for more precise timing
 
 // Fix the Supabase client initialization
 const SUPABASE_URL = 'https://oofyemkmdslsenmxefzu.supabase.co';
@@ -732,9 +737,14 @@ function drawParticles() {
   }
 }
 
-// Fix the spawnBoss function to create a simpler, working boss
+// Update the spawnBoss function to initialize the timer with milliseconds
 function spawnBoss() {
   bossActive = true;
+  bossTimerStarted = true;
+  // Convert to milliseconds for more precise timing
+  bossTimerMs = (bossTimeLimit - Math.floor(level/2)) * 1000; // Reduce time for higher levels
+  bossTimerMs = max(bossTimerMs, 10000); // Minimum 10 seconds even at high levels
+  
   boss = {
     x: width / 2,
     y: 80,
@@ -744,17 +754,92 @@ function spawnBoss() {
     direction: 1,
     speed: 2,
     shootTimer: millis(),
-    shootInterval: 800 // Shoot more frequently than regular enemies
+    shootInterval: 800, // Shoot more frequently than regular enemies
+    selfDestructTimer: bossTimerMs, // Store timer in boss object
+    lastTimerUpdate: millis() // Track last update time
   };
   
-  // Announce boss arrival
+  // Announce boss arrival with timer warning
   createFloatingText(width/2, height/2 - 50, "LEVEL " + level + " BOSS!", color(255, 0, 0));
-  createFloatingText(width/2, height/2 - 20, "DEFEAT THE BOSS!", color(255, 150, 0));
+  createFloatingText(width/2, height/2 - 20, "BOSS SELF-DESTRUCT IN " + (bossTimerMs/1000).toFixed(1) + " SECONDS!", color(255, 150, 0));
 }
 
-// Update the updateBoss function to make it simpler and reliable
+// Update the updateBoss function to use millisecond precision
 function updateBoss() {
   if (!boss) return; // Safety check
+  
+  // Update boss timer with millisecond precision
+  let currentTime = millis();
+  let deltaTime = currentTime - boss.lastTimerUpdate;
+  boss.selfDestructTimer -= deltaTime;
+  boss.lastTimerUpdate = currentTime;
+  
+  // Create warning effects as time runs low
+  if (boss.selfDestructTimer <= 5000 && frameCount % 10 === 0) { // More frequent warnings in last 5 seconds
+    bossTimerFlashing = true;
+    
+    // Create warning effect
+    if (boss.selfDestructTimer <= 3000) {
+      // Add pulsing effect to boss when close to exploding
+      let pulseSize = sin(frameCount * 0.2) * 10;
+      boss.displaySize = boss.size + pulseSize;
+      
+      // Add particle effects around boss
+      let angle = random(TWO_PI);
+      let distance = boss.size/2;
+      createParticle(
+        boss.x + cos(angle) * distance,
+        boss.y + sin(angle) * distance,
+        random(5, 10),
+        color(255, random(0, 100), 0, 200),
+        15
+      );
+    }
+    
+    // More intense warnings in last 3 seconds
+    if (boss.selfDestructTimer <= 3000 && frameCount % 15 === 0) {
+      createFloatingText(
+        boss.x + random(-30, 30),
+        boss.y + random(-30, 30),
+        (boss.selfDestructTimer/1000).toFixed(1) + "s!",
+        color(255, 0, 0, 200)
+      );
+    }
+  }
+  
+  // Time's up!
+  if (boss.selfDestructTimer <= 0) {
+    // Create massive explosion
+    createExplosion(boss.x, boss.y, 200, color(255, 0, 0));
+    
+    // Create screen-wide shockwave
+    particles.push({
+      type: 'shockwave',
+      x: width/2,
+      y: height/2,
+      size: 10,
+      maxSize: width,
+      alpha: 200,
+      life: 60,
+      color: color(255, 50, 50)
+    });
+    
+    // Kill the player
+    playerHealth = 0;
+    gameOver = true;
+    
+    // Create explosion at player position
+    createExplosion(playerX, playerY, 50, color(255, 200, 0));
+    
+    // Show message
+    createFloatingText(width/2, height/2, "BOSS SELF-DESTRUCTED!", color(255, 0, 0));
+    
+    // Reset boss
+    bossActive = false;
+    boss = null;
+    bossTimerStarted = false;
+    return;
+  }
   
   // Move boss back and forth
   boss.x += boss.direction * boss.speed;
@@ -786,23 +871,34 @@ function updateBoss() {
   }
 }
 
-// Fix the drawBoss function to ensure it properly renders the boss
+// Update the drawBoss function to show the timer on the boss
 function drawBoss() {
   if (!boss) return; // Safety check
+  
+  // Use the display size if available (for pulsing effect)
+  let displaySize = boss.displaySize || boss.size;
   
   push();
   translate(boss.x, boss.y);
   
+  // Draw warning glow around boss when time is running low
+  if (boss.selfDestructTimer < 5000) {
+    let glowIntensity = map(boss.selfDestructTimer, 0, 5000, 150, 50);
+    let glowSize = displaySize * 1.2;
+    fill(255, 0, 0, glowIntensity);
+    ellipse(0, 0, glowSize, glowSize);
+  }
+  
   // Boss body
   fill(150, 0, 0);
-  ellipse(0, 0, boss.size, boss.size);
+  ellipse(0, 0, displaySize, displaySize);
   
   // Boss armor plates
   fill(100, 0, 0);
   beginShape();
   for (let i = 0; i < 8; i++) {
     let angle = i * TWO_PI / 8;
-    let radius = boss.size * 0.4;
+    let radius = displaySize * 0.4;
     vertex(cos(angle) * radius, sin(angle) * radius);
   }
   endShape(CLOSE);
@@ -826,6 +922,31 @@ function drawBoss() {
   for (let i = -20; i <= 20; i += 10) {
     triangle(i, 20, i + 5, 35, i - 5, 35);
   }
+  
+  // Draw self-destruct timer directly on the boss
+  let timerSeconds = (boss.selfDestructTimer / 1000).toFixed(1);
+  
+  // Make timer more prominent and alarming
+  textSize(24);
+  textAlign(CENTER, CENTER);
+  
+  // Create a background for the timer
+  fill(0, 0, 0, 150);
+  ellipse(0, -40, 70, 30);
+  
+  // Make timer flash red/yellow when time is running low
+  if (boss.selfDestructTimer < 5000) {
+    if (frameCount % 10 < 5) {
+      fill(255, 0, 0);
+    } else {
+      fill(255, 255, 0);
+    }
+  } else {
+    fill(255);
+  }
+  
+  // Draw the timer with seconds and decimal
+  text(timerSeconds + "s", 0, -40);
   
   pop();
   
